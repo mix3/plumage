@@ -10,6 +10,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -76,8 +77,19 @@ func TestExample(t *testing.T) {
 	child2.EXPECT().Fuga().AnyTimes().Return(pstr("fuga"))
 	child2.EXPECT().Piyo().AnyTimes().Return(&time.Time{})
 
-	assert.Empty(t, cmp.Diff(example.NewBaseStruct(child1), example.NewBaseStruct(c1{})))
-	assert.Empty(t, cmp.Diff(example.NewBaseStruct(child2), example.NewBaseStruct(c2{})))
-	assert.NotEmpty(t, cmp.Diff(example.NewBaseStruct(child1), example.NewBaseStruct(c2{})))
-	assert.NotEmpty(t, cmp.Diff(example.NewBaseStruct(child2), example.NewBaseStruct(c1{})))
+	g1, g2 := example.NewBaseStruct(c1{}), example.NewBaseStruct(c2{})
+	w1, w2 := example.NewBaseStruct(child1), example.NewBaseStruct(child2)
+	assert.Empty(t, cmp.Diff(g1, w1))
+	assert.Empty(t, cmp.Diff(g2, w2))
+	assert.NotEmpty(t, cmp.Diff(g1, w2))
+	assert.NotEmpty(t, cmp.Diff(g2, w1))
+
+	child3 := mock_example.NewMockChild1(ctrl)
+	child3.EXPECT().ID().AnyTimes().Return(example.ID(""))
+	child3.EXPECT().Stringer().AnyTimes().Return(stringer("stringer"))
+	child3.EXPECT().Hoge().AnyTimes().Return(time.Time{})
+
+	w3 := example.NewBaseStruct(child3)
+	assert.NotEmpty(t, cmp.Diff(g1, w3))
+	assert.Empty(t, cmp.Diff(g1, w3, cmpopts.IgnoreFields(g1, "ID_")))
 }
