@@ -1,5 +1,5 @@
 //go:generate mockgen -source=$GOFILE -destination=mock/$GOFILE
-//go:generate go run github.com/mix3/plumage
+//go:generate go run github.com/mix3/plumage -dst structs
 
 package example
 

@@ -7,6 +7,7 @@ import (
 
 	"example"
 	mock_example "example/mock"
+	"example/structs"
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
@@ -77,8 +78,8 @@ func TestExample(t *testing.T) {
 	child2.EXPECT().Fuga().AnyTimes().Return(pstr("fuga"))
 	child2.EXPECT().Piyo().AnyTimes().Return(&time.Time{})
 
-	g1, g2 := example.NewBaseStruct(c1{}), example.NewBaseStruct(c2{})
-	w1, w2 := example.NewBaseStruct(child1), example.NewBaseStruct(child2)
+	g1, g2 := structs.NewBase(c1{}), structs.NewBase(c2{})
+	w1, w2 := structs.NewBase(child1), structs.NewBase(child2)
 	assert.Empty(t, cmp.Diff(g1, w1))
 	assert.Empty(t, cmp.Diff(g2, w2))
 	assert.NotEmpty(t, cmp.Diff(g1, w2))
@@ -89,7 +90,7 @@ func TestExample(t *testing.T) {
 	child3.EXPECT().Stringer().AnyTimes().Return(stringer("stringer"))
 	child3.EXPECT().Hoge().AnyTimes().Return(time.Time{})
 
-	w3 := example.NewBaseStruct(child3)
+	w3 := structs.NewBase(child3)
 	assert.NotEmpty(t, cmp.Diff(g1, w3))
 	assert.Empty(t, cmp.Diff(g1, w3, cmpopts.IgnoreFields(g1, "ID_")))
 }

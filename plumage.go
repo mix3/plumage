@@ -23,14 +23,14 @@ var tmpl = template.Must(template.New("tmpl").Funcs(
 package {{ .PkgName }}
 
 {{- range .TypeInfos.Interfaces }}{{ $TypeInfo := . }}
-type {{ .Name }}Struct struct {
+type {{ .Name }} struct {
 	{{- range .FieldInfos.ValueFieldInfos }}
 		{{ .Name }}_ {{ .ResultsStr }}
 	{{- end }}
 }
 
 {{- range .FieldInfos }}
-func (v {{ $TypeInfo.Name }}Struct) {{ .Name }}({{ .ParamsStr }}) ({{ .ResultsStr }}) {
+func (v {{ $TypeInfo.Name }}) {{ .Name }}({{ .ParamsStr }}) ({{ .ResultsStr }}) {
 	{{- if .IsValue }}
 	return v.{{ .Name }}_
 	{{- else }}
@@ -41,23 +41,23 @@ func (v {{ $TypeInfo.Name }}Struct) {{ .Name }}({{ .ParamsStr }}) ({{ .ResultsSt
 {{ end }}{{ end }}
 
 {{- range .TypeInfos.Interfaces }}
-func New{{ .Name }}Struct(v {{ .Name }}) {{ .Name }} {
+func New{{ .Name }}(v {{ .FullName }}) {{ .FullName }} {
 	if v == nil {
 		return nil
 	}
 	switch {{ if ne 0 .ChildCount }}t := {{ end }}v.(type) {
 	{{- range .Child }}
 	case {{ . }}:
-		return New{{ . }}Struct(t)
+		return New{{ . }}(t)
 	{{- end }}
 	default:
-		return {{ .Name }}Struct{
+		return {{ .Name }}{
 			{{- range .FieldInfos.ValueFieldInfos }}
 				{{- if .IsInterface }}{{ $Field := index .Results 0 }}
 					{{- if lt 0 $Field.ArrayCount }}
-						{{ .Name }}_: New{{ $Field.TypeName }}StructList(v.{{ .Name }}()),
+						{{ .Name }}_: New{{ $Field.TypeName }}List(v.{{ .Name }}()),
 					{{- else }}
-						{{ .Name }}_: New{{ $Field.TypeName }}Struct(v.{{ .Name }}()),
+						{{ .Name }}_: New{{ $Field.TypeName }}(v.{{ .Name }}()),
 					{{- end }}
 				{{- else }}
 					{{ .Name }}_: v.{{ .Name }}(),
@@ -67,10 +67,10 @@ func New{{ .Name }}Struct(v {{ .Name }}) {{ .Name }} {
 	}
 }
 
-func New{{ .Name }}StructList(vs []{{ .Name }}) []{{ .Name }} {
-	ret := make([]{{ .Name }}, 0, len(vs))
+func New{{ .Name }}List(vs []{{ .FullName }}) []{{ .FullName }} {
+	ret := make([]{{ .FullName }}, 0, len(vs))
 	for _, v := range vs {
-		ret = append(ret, New{{ .Name }}Struct(v))
+		ret = append(ret, New{{ .Name }}(v))
 	}
 	return ret
 }
@@ -79,30 +79,35 @@ func New{{ .Name }}StructList(vs []{{ .Name }}) []{{ .Name }} {
 `))
 
 func main() {
-	var src, suffix string
+	var src, dir, suffix string
 	flag.StringVar(&src, "src", "", "code generate source")
-	flag.StringVar(&suffix, "output file suffix", ".gen_test.go", "default .gen_test.go")
+	flag.StringVar(&dir, "dst", "", "output directory")
+	flag.StringVar(&suffix, "suffix", ".gen.go", "output file suffix. default .gen.go")
 	flag.Parse()
 
 	if src == "" {
 		src = filepath.Dir(os.Getenv("GOFILE"))
 	}
 
-	if err := run(src, suffix); err != nil {
+	if err := run(src, dir, suffix); err != nil {
 		log.Fatalf("[ERROR] %s", err)
 	}
 }
 
-func run(src, suffix string) error {
-	tinfos, err := inspect(src)
+func run(src, dir, suffix string) error {
+	tinfos, err := inspect(src, dir == "")
 	if err != nil {
 		return err
 	}
 
-	var pkgName string
+	var fileName, pkgName string
 	for _, tinfo := range tinfos {
 		pkgName = tinfo.PkgName
+		fileName = pkgName
 		break
+	}
+	if dir != "" {
+		pkgName = filepath.Base(dir)
 	}
 
 	buf := &bytes.Buffer{}
@@ -121,7 +126,13 @@ func run(src, suffix string) error {
 	}
 	formatted := bytes.NewBuffer(formattedBytes)
 
-	dst := filepath.Join(src, pkgName+suffix)
+	if dir != "" {
+		if err := os.MkdirAll(dir, os.ModePerm); err != nil {
+			return fmt.Errorf("Run: fail to create directory: path=%s, error=%w", dir, err)
+		}
+	}
+
+	dst := filepath.Join(src, dir, fileName+suffix)
 	f, err := os.Create(dst)
 	if err != nil {
 		return fmt.Errorf("Run: fail to create file: filename=%s, error=%w", dst, err)
@@ -135,7 +146,7 @@ func run(src, suffix string) error {
 	return nil
 }
 
-func inspect(src string) (TypeInfos, error) {
+func inspect(src string, samePkg bool) (TypeInfos, error) {
 	fset := token.NewFileSet()
 	pkgs, err := parser.ParseDir(fset, src, func(f os.FileInfo) bool {
 		return strings.HasSuffix(f.Name(), ".go") && !strings.HasSuffix(f.Name(), "_test.go")
@@ -161,7 +172,7 @@ func inspect(src string) (TypeInfos, error) {
 		}
 	}
 
-	tinfos = tinfos.Post()
+	tinfos = tinfos.Post(samePkg)
 
 	return tinfos, nil
 }
@@ -178,10 +189,14 @@ func (ts TypeInfos) Interfaces() []*TypeInfo {
 	return ret
 }
 
-func (ts TypeInfos) Post() TypeInfos {
+func (ts TypeInfos) Post(samePkg bool) TypeInfos {
 	imap := make(map[string]struct{}, len(ts))
-	for _, t := range ts.Interfaces() {
-		imap[t.Name] = struct{}{}
+	tmap := make(map[string]struct{}, len(ts))
+	for _, t := range ts {
+		tmap[t.Name] = struct{}{}
+		if t.IsInterface {
+			imap[t.Name] = struct{}{}
+		}
 	}
 
 	p2cs := map[string][]string{}
@@ -198,9 +213,14 @@ func (ts TypeInfos) Post() TypeInfos {
 				continue
 			}
 			f := finfo.Results[0]
-			_, finfo.IsInterface = imap[f.TypeName]
-			if finfo.IsInterface && 2 <= f.ArrayCount {
-				panic(fmt.Errorf("Multi-dimensional arrays are not supported"))
+			if _, ok := tmap[f.TypeName]; ok && !samePkg {
+				f.PkgName = iface.PkgName
+			}
+			if _, ok := imap[f.TypeName]; ok {
+				finfo.IsInterface = true
+				if 2 <= f.ArrayCount {
+					panic(fmt.Errorf("Multi-dimensional arrays are not supported"))
+				}
 			}
 		}
 		// Child埋める
@@ -226,6 +246,13 @@ type TypeInfo struct {
 
 func (t TypeInfo) ChildCount() int {
 	return len(t.Child)
+}
+
+func (t TypeInfo) FullName() string {
+	if t.PkgName != "" {
+		return t.PkgName + "." + t.Name
+	}
+	return t.Name
 }
 
 func NewTypeInfo(pkgName, name string) *TypeInfo {

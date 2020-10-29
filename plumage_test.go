@@ -22,6 +22,10 @@ func TestPlumage(t *testing.T) {
 
 type ID string
 
+type A interface {
+	B() int
+}
+
 type Base interface {
 	ID() ID
 }
@@ -38,6 +42,7 @@ type Child2 interface {
 	Fuga() []string
 	Piyo() *time.Time
 	Baz(*time.Time)
+	A() A
 }
 `)
 	if err := ioutil.WriteFile(filepath.Join(dir, "example.go"), content, 0644); err != nil {
@@ -45,7 +50,7 @@ type Child2 interface {
 		return
 	}
 
-	got, err := inspect(dir)
+	got, err := inspect(dir, false)
 	if err != nil {
 		t.Error(err)
 		return
@@ -66,6 +71,34 @@ type Child2 interface {
 		&TypeInfo{
 			PkgName:     "example",
 			TypeName:    "",
+			Name:        "A",
+			IsInterface: true,
+			IsArray:     false,
+			ArrayCount:  0,
+			Parent:      []string{},
+			Child:       []string{},
+			FieldInfos: []*FieldInfo{
+				{
+					Name:   "B",
+					Params: []*Field{},
+					Results: []*Field{
+						{
+							PkgName:    "",
+							TypeName:   "int",
+							IsArray:    false,
+							ArrayCount: 0,
+							IsStar:     false,
+							IsObj:      false,
+						},
+					},
+					IsInterface: false,
+					IsValue:     true,
+				},
+			},
+		},
+		&TypeInfo{
+			PkgName:     "example",
+			TypeName:    "",
 			Name:        "Base",
 			IsInterface: true,
 			IsArray:     false,
@@ -78,7 +111,7 @@ type Child2 interface {
 					Params: []*Field{},
 					Results: []*Field{
 						{
-							PkgName:    "",
+							PkgName:    "example",
 							TypeName:   "ID",
 							IsArray:    false,
 							ArrayCount: 0,
@@ -106,7 +139,7 @@ type Child2 interface {
 					Params: []*Field{},
 					Results: []*Field{
 						{
-							PkgName:    "",
+							PkgName:    "example",
 							TypeName:   "ID",
 							IsArray:    false,
 							ArrayCount: 0,
@@ -181,7 +214,7 @@ type Child2 interface {
 					Params: []*Field{},
 					Results: []*Field{
 						{
-							PkgName:    "",
+							PkgName:    "example",
 							TypeName:   "ID",
 							IsArray:    false,
 							ArrayCount: 0,
@@ -240,8 +273,35 @@ type Child2 interface {
 					IsInterface: false,
 					IsValue:     false,
 				},
+				{
+					Name:   "A",
+					Params: []*Field{},
+					Results: []*Field{
+						{
+							PkgName:    "example",
+							TypeName:   "A",
+							IsArray:    false,
+							ArrayCount: 0,
+							IsStar:     false,
+							IsObj:      true,
+						},
+					},
+					IsInterface: true,
+					IsValue:     true,
+				},
 			},
 		},
 	}
+	assert.Empty(t, cmp.Diff(want, got))
+
+	got, err = inspect(dir, true)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	want[2].FieldInfos[0].Results[0].PkgName = ""
+	want[3].FieldInfos[0].Results[0].PkgName = ""
+	want[4].FieldInfos[0].Results[0].PkgName = ""
+	want[4].FieldInfos[4].Results[0].PkgName = ""
 	assert.Empty(t, cmp.Diff(want, got))
 }
