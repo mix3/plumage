@@ -37,6 +37,14 @@ func (c c1) Hoge() time.Time {
 	return time.Time{}
 }
 
+func (c c1) Foo() {
+	panic(fmt.Errorf("not implemented"))
+}
+
+func (c c1) Bar(_ string) {
+	panic(fmt.Errorf("not implemented"))
+}
+
 type c2 struct{}
 
 func (c c2) ID() example.ID {
@@ -49,6 +57,10 @@ func (c c2) Fuga() *string {
 
 func (c c2) Piyo() *time.Time {
 	return &time.Time{}
+}
+
+func (c c2) Baz() (string, string) {
+	panic(fmt.Errorf("not implemented"))
 }
 
 func TestExample(t *testing.T) {
@@ -67,4 +79,5 @@ func TestExample(t *testing.T) {
 	assert.Empty(t, cmp.Diff(example.NewBaseStruct(child1), example.NewBaseStruct(c1{})))
 	assert.Empty(t, cmp.Diff(example.NewBaseStruct(child2), example.NewBaseStruct(c2{})))
 	assert.NotEmpty(t, cmp.Diff(example.NewBaseStruct(child1), example.NewBaseStruct(c2{})))
+	assert.NotEmpty(t, cmp.Diff(example.NewBaseStruct(child2), example.NewBaseStruct(c1{})))
 }

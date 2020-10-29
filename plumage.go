@@ -24,14 +24,18 @@ package {{ .PkgName }}
 
 {{- range .TypeInfos.Interfaces }}{{ $TypeInfo := . }}
 type {{ .Name }}Struct struct {
-	{{- range .FieldInfos }}
-		{{ .Name }}_ {{ .FullTypeName }}
+	{{- range .FieldInfos.ValueFieldInfos }}
+		{{ .Name }}_ {{ .ResultsStr }}
 	{{- end }}
 }
 
 {{- range .FieldInfos }}
-func (v {{ $TypeInfo.Name }}Struct) {{ .Name }}() {{ .FullTypeName }} {
+func (v {{ $TypeInfo.Name }}Struct) {{ .Name }}({{ .ParamsStr }}) ({{ .ResultsStr }}) {
+	{{- if .IsValue }}
 	return v.{{ .Name }}_
+	{{- else }}
+	panic(fmt.Errorf("Not supported."))
+	{{- end }}
 }
 
 {{ end }}{{ end }}
@@ -48,12 +52,12 @@ func New{{ .Name }}Struct(v {{ .Name }}) {{ .Name }} {
 	{{- end }}
 	default:
 		return {{ .Name }}Struct{
-			{{- range .FieldInfos }}
-				{{- if .IsInterface }}
-					{{- if lt 0 .ArrayCount }}
-						{{ .Name }}_: New{{ .TypeName }}StructList(v.{{ .Name }}()),
+			{{- range .FieldInfos.ValueFieldInfos }}
+				{{- if .IsInterface }}{{ $Field := index .Results 0 }}
+					{{- if lt 0 $Field.ArrayCount }}
+						{{ .Name }}_: New{{ $Field.TypeName }}StructList(v.{{ .Name }}()),
 					{{- else }}
-						{{ .Name }}_: New{{ .TypeName }}Struct(v.{{ .Name }}()),
+						{{ .Name }}_: New{{ $Field.TypeName }}Struct(v.{{ .Name }}()),
 					{{- end }}
 				{{- else }}
 					{{ .Name }}_: v.{{ .Name }}(),
@@ -190,8 +194,12 @@ func (ts TypeInfos) Post() TypeInfos {
 	for _, iface := range ts.Interfaces() {
 		// フィールドが interface を返すのか struct を返すのかを区別したい
 		for _, finfo := range iface.FieldInfos {
-			_, finfo.IsInterface = imap[finfo.TypeName]
-			if finfo.IsInterface && 2 <= finfo.ArrayCount {
+			if !finfo.IsValue {
+				continue
+			}
+			f := finfo.Results[0]
+			_, finfo.IsInterface = imap[f.TypeName]
+			if finfo.IsInterface && 2 <= f.ArrayCount {
 				panic(fmt.Errorf("Multi-dimensional arrays are not supported"))
 			}
 		}
@@ -213,7 +221,7 @@ type TypeInfo struct {
 	ArrayCount  int
 	Parent      []string
 	Child       []string
-	FieldInfos  []*FieldInfo
+	FieldInfos  FieldInfos
 }
 
 func (t TypeInfo) ChildCount() int {
@@ -226,7 +234,7 @@ func NewTypeInfo(pkgName, name string) *TypeInfo {
 		Name:       name,
 		Parent:     make([]string, 0, 10),
 		Child:      make([]string, 0, 10),
-		FieldInfos: make([]*FieldInfo, 0, 10),
+		FieldInfos: make(FieldInfos, 0, 10),
 	}
 }
 
@@ -252,14 +260,19 @@ func typ(expr ast.Expr, info *TypeInfo) *TypeInfo {
 				info = typ(tspec.Type, info)
 			case *ast.FuncType:
 				// 引数取らず値を一つだけ返すやつに絞る
-				if mt.Params.NumFields() != 0 {
-					continue
-				}
-				if mt.Results.NumFields() != 1 {
-					continue
-				}
 				mname := method.Names[0].Name
-				finfo := field(mt.Results.List[0].Type, NewFieldInfo(mname))
+				finfo := NewFieldInfo(mname)
+				if 0 < mt.Params.NumFields() {
+					for _, p := range mt.Params.List {
+						finfo.Params = append(finfo.Params, field(p.Type, &Field{}))
+					}
+				}
+				if 0 < mt.Results.NumFields() {
+					for _, r := range mt.Results.List {
+						finfo.Results = append(finfo.Results, field(r.Type, &Field{}))
+					}
+				}
+				finfo.IsValue = mt.Params.NumFields() == 0 && mt.Results.NumFields() == 1
 				info.FieldInfos = append(info.FieldInfos, finfo)
 			default:
 				panic(fmt.Errorf("method.Type(%T) does not support", mt))
@@ -269,24 +282,60 @@ func typ(expr ast.Expr, info *TypeInfo) *TypeInfo {
 	return info
 }
 
+type FieldInfos []*FieldInfo
+
+func (fs FieldInfos) ValueFieldInfos() FieldInfos {
+	ret := make(FieldInfos, 0, len(fs))
+	for _, f := range fs {
+		if f.IsValue {
+			ret = append(ret, f)
+		}
+	}
+	return ret
+}
+
 type FieldInfo struct {
 	Name        string
-	PkgName     string
-	TypeName    string
-	IsArray     bool
-	ArrayCount  int
-	IsStar      bool
-	IsObj       bool
+	Params      []*Field
+	Results     []*Field
+	IsValue     bool
 	IsInterface bool
 }
 
 func NewFieldInfo(name string) *FieldInfo {
 	return &FieldInfo{
-		Name: name,
+		Name:    name,
+		Params:  make([]*Field, 0, 10),
+		Results: make([]*Field, 0, 10),
 	}
 }
 
-func (f FieldInfo) FullTypeName() string {
+func (f *FieldInfo) ParamsStr() string {
+	ret := make([]string, 0, len(f.Params))
+	for _, p := range f.Params {
+		ret = append(ret, p.FullTypeName())
+	}
+	return strings.Join(ret, ", ")
+}
+
+func (f *FieldInfo) ResultsStr() string {
+	ret := make([]string, 0, len(f.Results))
+	for _, f := range f.Results {
+		ret = append(ret, f.FullTypeName())
+	}
+	return strings.Join(ret, ", ")
+}
+
+type Field struct {
+	PkgName    string
+	TypeName   string
+	IsArray    bool
+	ArrayCount int
+	IsStar     bool
+	IsObj      bool
+}
+
+func (f Field) FullTypeName() string {
 	str := ""
 	if f.IsArray {
 		str += strings.Repeat("[]", f.ArrayCount)
@@ -301,29 +350,25 @@ func (f FieldInfo) FullTypeName() string {
 	return str
 }
 
-func (f FieldInfo) String() string {
-	return f.Name + "() " + f.FullTypeName()
-}
-
-func field(expr ast.Expr, info *FieldInfo) *FieldInfo {
+func field(expr ast.Expr, f *Field) *Field {
 	switch rt := expr.(type) {
 	case *ast.Ident:
-		info.TypeName = rt.Name
-		info.IsObj = rt.Obj != nil
+		f.TypeName = rt.Name
+		f.IsObj = rt.Obj != nil
 	case *ast.ArrayType:
-		info.IsArray = true
-		info.ArrayCount++
-		info = field(rt.Elt, info)
+		f.IsArray = true
+		f.ArrayCount++
+		f = field(rt.Elt, f)
 	case *ast.StarExpr:
-		info.IsStar = true
-		info = field(rt.X, info)
+		f.IsStar = true
+		f = field(rt.X, f)
 	case *ast.SelectorExpr:
 		x, ok := rt.X.(*ast.Ident)
 		if !ok {
 			break
 		}
-		info.PkgName = x.Name
-		info = field(rt.Sel, info)
+		f.PkgName = x.Name
+		f = field(rt.Sel, f)
 	}
-	return info
+	return f
 }

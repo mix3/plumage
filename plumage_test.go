@@ -29,12 +29,15 @@ type Base interface {
 type Child1 interface {
 	Base
 	Hoge() int
+	Foo()
+	Bar() (string, []int)
 }
 
 type Child2 interface {
 	Base
 	Fuga() []string
 	Piyo() *time.Time
+	Baz(*time.Time)
 }
 `)
 	if err := ioutil.WriteFile(filepath.Join(dir, "example.go"), content, 0644); err != nil {
@@ -71,14 +74,20 @@ type Child2 interface {
 			Child:       []string{"Child1", "Child2"},
 			FieldInfos: []*FieldInfo{
 				{
-					Name:        "ID",
-					PkgName:     "",
-					TypeName:    "ID",
-					IsArray:     false,
-					ArrayCount:  0,
-					IsStar:      false,
-					IsObj:       true,
+					Name:   "ID",
+					Params: []*Field{},
+					Results: []*Field{
+						{
+							PkgName:    "",
+							TypeName:   "ID",
+							IsArray:    false,
+							ArrayCount: 0,
+							IsStar:     false,
+							IsObj:      true,
+						},
+					},
 					IsInterface: false,
+					IsValue:     true,
 				},
 			},
 		},
@@ -93,24 +102,67 @@ type Child2 interface {
 			Child:       []string{},
 			FieldInfos: []*FieldInfo{
 				{
-					Name:        "ID",
-					PkgName:     "",
-					TypeName:    "ID",
-					IsArray:     false,
-					ArrayCount:  0,
-					IsStar:      false,
-					IsObj:       true,
+					Name:   "ID",
+					Params: []*Field{},
+					Results: []*Field{
+						{
+							PkgName:    "",
+							TypeName:   "ID",
+							IsArray:    false,
+							ArrayCount: 0,
+							IsStar:     false,
+							IsObj:      true,
+						},
+					},
 					IsInterface: false,
+					IsValue:     true,
 				},
 				{
-					Name:        "Hoge",
-					PkgName:     "",
-					TypeName:    "int",
-					IsArray:     false,
-					ArrayCount:  0,
-					IsStar:      false,
-					IsObj:       false,
+					Name:   "Hoge",
+					Params: []*Field{},
+					Results: []*Field{
+						{
+							PkgName:    "",
+							TypeName:   "int",
+							IsArray:    false,
+							ArrayCount: 0,
+							IsStar:     false,
+							IsObj:      false,
+						},
+					},
 					IsInterface: false,
+					IsValue:     true,
+				},
+				{
+					Name:        "Foo",
+					Params:      []*Field{},
+					Results:     []*Field{},
+					IsInterface: false,
+					IsValue:     false,
+				},
+				{
+					Name:   "Bar",
+					Params: []*Field{},
+					Results: []*Field{
+						{
+							PkgName:    "",
+							TypeName:   "string",
+							IsArray:    false,
+							ArrayCount: 0,
+							IsStar:     false,
+							IsObj:      false,
+						},
+						{
+							PkgName:    "",
+							TypeName:   "int",
+							IsArray:    true,
+							ArrayCount: 1,
+							IsStar:     false,
+							IsObj:      false,
+						},
+					},
+					IsInterface: false,
+					IsValue:     false,
 				},
 			},
 		},
@@ -125,34 +177,68 @@ type Child2 interface {
 			Child:       []string{},
 			FieldInfos: []*FieldInfo{
 				{
-					Name:        "ID",
-					PkgName:     "",
-					TypeName:    "ID",
-					IsArray:     false,
-					ArrayCount:  0,
-					IsStar:      false,
-					IsObj:       true,
+					Name:   "ID",
+					Params: []*Field{},
+					Results: []*Field{
+						{
+							PkgName:    "",
+							TypeName:   "ID",
+							IsArray:    false,
+							ArrayCount: 0,
+							IsStar:     false,
+							IsObj:      true,
+						},
+					},
 					IsInterface: false,
+					IsValue:     true,
 				},
 				{
-					Name:        "Fuga",
-					PkgName:     "",
-					TypeName:    "string",
-					IsArray:     true,
-					ArrayCount:  1,
-					IsStar:      false,
-					IsObj:       false,
+					Name:   "Fuga",
+					Params: []*Field{},
+					Results: []*Field{
+						{
+							PkgName:    "",
+							TypeName:   "string",
+							IsArray:    true,
+							ArrayCount: 1,
+							IsStar:     false,
+							IsObj:      false,
+						},
+					},
 					IsInterface: false,
+					IsValue:     true,
 				},
 				{
-					Name:        "Piyo",
-					PkgName:     "time",
-					TypeName:    "Time",
-					IsArray:     false,
-					ArrayCount:  0,
-					IsStar:      true,
-					IsObj:       false,
+					Name:   "Piyo",
+					Params: []*Field{},
+					Results: []*Field{
+						{
+							PkgName:    "time",
+							TypeName:   "Time",
+							IsArray:    false,
+							ArrayCount: 0,
+							IsStar:     true,
+							IsObj:      false,
+						},
+					},
 					IsInterface: false,
+					IsValue:     true,
+				},
+				{
+					Name: "Baz",
+					Params: []*Field{
+						{
+							PkgName:    "time",
+							TypeName:   "Time",
+							IsArray:    false,
+							ArrayCount: 0,
+							IsStar:     true,
+							IsObj:      false,
+						},
+					},
+					Results:     []*Field{},
+					IsInterface: false,
+					IsValue:     false,
 				},
 			},
 		},

@@ -20,12 +20,15 @@ type Child1 interface {
 	Base
 	Stringer() fmt.Stringer
 	Hoge() time.Time
+	Foo()
+	Bar(string)
 }
 
 type Child2 interface {
 	Base
 	Fuga() *string
 	Piyo() *time.Time
+	Baz() (string, string)
 }
 
 type X interface {

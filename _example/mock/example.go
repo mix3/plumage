@@ -114,6 +114,30 @@ func (mr *MockChild1MockRecorder) Hoge() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Hoge", reflect.TypeOf((*MockChild1)(nil).Hoge))
 }
 
+// Foo mocks base method
+func (m *MockChild1) Foo() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Foo")
+}
+
+// Foo indicates an expected call of Foo
+func (mr *MockChild1MockRecorder) Foo() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Foo", reflect.TypeOf((*MockChild1)(nil).Foo))
+}
+
+// Bar mocks base method
+func (m *MockChild1) Bar(arg0 string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "Bar", arg0)
+}
+
+// Bar indicates an expected call of Bar
+func (mr *MockChild1MockRecorder) Bar(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Bar", reflect.TypeOf((*MockChild1)(nil).Bar), arg0)
+}
+
 // MockChild2 is a mock of Child2 interface
 type MockChild2 struct {
 	ctrl     *gomock.Controller
@@ -177,6 +201,21 @@ func (m *MockChild2) Piyo() *time.Time {
 func (mr *MockChild2MockRecorder) Piyo() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Piyo", reflect.TypeOf((*MockChild2)(nil).Piyo))
+}
+
+// Baz mocks base method
+func (m *MockChild2) Baz() (string, string) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Baz")
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(string)
+	return ret0, ret1
+}
+
+// Baz indicates an expected call of Baz
+func (mr *MockChild2MockRecorder) Baz() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Baz", reflect.TypeOf((*MockChild2)(nil).Baz))
 }
 
 // MockX is a mock of X interface

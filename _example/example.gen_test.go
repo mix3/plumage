@@ -33,6 +33,14 @@ func (v Child1Struct) Hoge() time.Time {
 	return v.Hoge_
 }
 
+func (v Child1Struct) Foo() {
+	panic(fmt.Errorf("Not supported."))
+}
+
+func (v Child1Struct) Bar(string) {
+	panic(fmt.Errorf("Not supported."))
+}
+
 type Child2Struct struct {
 	ID_   ID
 	Fuga_ *string
@@ -49,6 +57,10 @@ func (v Child2Struct) Fuga() *string {
 
 func (v Child2Struct) Piyo() *time.Time {
 	return v.Piyo_
+}
+
+func (v Child2Struct) Baz() (string, string) {
+	panic(fmt.Errorf("Not supported."))
 }
 
 type XStruct struct {
