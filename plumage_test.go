@@ -65,7 +65,7 @@ type Child2 interface {
 			IsArray:     false,
 			ArrayCount:  0,
 			Parent:      []string{},
-			Child:       []string{},
+			Child:       []*Name{},
 			FieldInfos:  []*FieldInfo{},
 		},
 		&TypeInfo{
@@ -76,7 +76,7 @@ type Child2 interface {
 			IsArray:     false,
 			ArrayCount:  0,
 			Parent:      []string{},
-			Child:       []string{},
+			Child:       []*Name{},
 			FieldInfos: []*FieldInfo{
 				{
 					Name:   "B",
@@ -104,7 +104,10 @@ type Child2 interface {
 			IsArray:     false,
 			ArrayCount:  0,
 			Parent:      []string{},
-			Child:       []string{"Child1", "Child2"},
+			Child: []*Name{
+				{PkgName: "example", Name: "Child1"},
+				{PkgName: "example", Name: "Child2"},
+			},
 			FieldInfos: []*FieldInfo{
 				{
 					Name:   "ID",
@@ -132,7 +135,7 @@ type Child2 interface {
 			IsArray:     false,
 			ArrayCount:  0,
 			Parent:      []string{"Base"},
-			Child:       []string{},
+			Child:       []*Name{},
 			FieldInfos: []*FieldInfo{
 				{
 					Name:   "ID",
@@ -207,7 +210,7 @@ type Child2 interface {
 			IsArray:     false,
 			ArrayCount:  0,
 			Parent:      []string{"Base"},
-			Child:       []string{},
+			Child:       []*Name{},
 			FieldInfos: []*FieldInfo{
 				{
 					Name:   "ID",
@@ -299,6 +302,7 @@ type Child2 interface {
 		t.Error(err)
 		return
 	}
+	want[2].Child = []*Name{{Name: "Child1"}, {Name: "Child2"}}
 	want[2].FieldInfos[0].Results[0].PkgName = ""
 	want[3].FieldInfos[0].Results[0].PkgName = ""
 	want[4].FieldInfos[0].Results[0].PkgName = ""

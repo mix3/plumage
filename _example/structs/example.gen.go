@@ -171,9 +171,9 @@ func NewBase(v example.Base) example.Base {
 		return nil
 	}
 	switch t := v.(type) {
-	case Child1:
+	case example.Child1:
 		return NewChild1(t)
-	case Child2:
+	case example.Child2:
 		return NewChild2(t)
 	default:
 		return Base{

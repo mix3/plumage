@@ -47,8 +47,8 @@ func New{{ .Name }}(v {{ .FullName }}) {{ .FullName }} {
 	}
 	switch {{ if ne 0 .ChildCount }}t := {{ end }}v.(type) {
 	{{- range .Child }}
-	case {{ . }}:
-		return New{{ . }}(t)
+	case {{ .FullName }}:
+		return New{{ .Name }}(t)
 	{{- end }}
 	default:
 		return {{ .Name }}{
@@ -199,10 +199,14 @@ func (ts TypeInfos) Post(samePkg bool) TypeInfos {
 		}
 	}
 
-	p2cs := map[string][]string{}
+	p2cs := map[string][]*Name{}
 	for _, t := range ts.Interfaces() {
 		for _, p := range t.Parent {
-			p2cs[p] = append(p2cs[p], t.Name)
+			n := &Name{Name: t.Name}
+			if !samePkg {
+				n.PkgName = t.PkgName
+			}
+			p2cs[p] = append(p2cs[p], n)
 		}
 	}
 
@@ -240,8 +244,20 @@ type TypeInfo struct {
 	IsArray     bool
 	ArrayCount  int
 	Parent      []string
-	Child       []string
+	Child       []*Name
 	FieldInfos  FieldInfos
+}
+
+type Name struct {
+	PkgName string
+	Name    string
+}
+
+func (n Name) FullName() string {
+	if n.PkgName != "" {
+		return n.PkgName + "." + n.Name
+	}
+	return n.Name
 }
 
 func (t TypeInfo) ChildCount() int {
@@ -260,7 +276,7 @@ func NewTypeInfo(pkgName, name string) *TypeInfo {
 		PkgName:    pkgName,
 		Name:       name,
 		Parent:     make([]string, 0, 10),
-		Child:      make([]string, 0, 10),
+		Child:      make([]*Name, 0, 10),
 		FieldInfos: make(FieldInfos, 0, 10),
 	}
 }
